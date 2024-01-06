@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe App - Add Recipe</title>
+    <!-- Include Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Navbar with Logout -->
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <a class="navbar-brand" href="#">Recipe App</a>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">Home</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="#">Add Recipe</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Add Recipe Form -->
+        <div class="mt-4">
+            <h2>Add Recipe</h2>
+            <form id="addRecipeForm">
+                <div class="form-group">
+                    <label for="recipeName">Recipe Name:</label>
+                    <input type="text" class="form-control" id="recipeName" placeholder="Enter recipe name" required>
+                </div>
+                <div class="form-group">
+                    <label for="recipeIngredients">Ingredients:</label>
+                    <textarea class="form-control" id="recipeIngredients" placeholder="Enter ingredients" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="prepTime">Preparation Time:</label>
+                    <input type="text" class="form-control" id="prepTime" placeholder="Enter preparation time" required>
+                </div>
+                <div class="form-group">
+                    <label for="photo">Photo:</label>
+                    <input type="file" class="form-control-file" id="photo">
+                </div>
+                <button type="button" class="btn btn-primary" onclick="addRecipe()">Add Recipe</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Include Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- Include Axios for making API requests -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <!-- Include custom JavaScript for adding recipes -->
+    <script>
+        const SERVER = 'http://localhost:5000/api/recipes';
+
+        function addRecipe() {
+            // Retrieve form data
+            const recipeName = document.getElementById('recipeName').value;
+            const recipeIngredients = document.getElementById('recipeIngredients').value;
+            const prepTime = document.getElementById('prepTime').value;
+            const photo = document.getElementById('photo').files[0];
+
+            // Create FormData to handle file upload
+            const formData = new FormData();
+            formData.append('name', recipeName);
+            formData.append('ingredients', recipeIngredients);
+            formData.append('prep_time', prepTime);
+            formData.append('photo', photo);
+
+            // Send POST request using Axios
+            axios.post(SERVER, formData)
+                .then(response => {
+                    // Handle the response data (newly added recipe)
+                    console.log(response.data);
+                    // Redirect to the index page or perform other actions as needed
+                    window.location.href = 'index.html';
+                })
+                .catch(error => {
+                    // Handle errors
+                    console.error(error);
+                });
+        }
+    </script>
+</body>
+</html>
