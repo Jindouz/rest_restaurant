@@ -37,6 +37,15 @@ class Users(UserMixin, db.Model):
     username = db.Column(db.String(255), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
 
+    @classmethod
+    def register(cls, username, password):
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        user = cls(username=username, password=hashed_password)
+        db.session.add(user)
+        db.session.commit()
+        return user
+
+
 # Define Recipe model
 class Recipe(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -44,9 +53,58 @@ class Recipe(db.Model):
     ingredients = db.Column(db.Text, nullable=False)
     prep_time = db.Column(db.String(50), nullable=False)
     image_path = db.Column(db.String(255), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', name='fk_recipe_user'), nullable=False)
+    user = db.relationship('Users', backref=db.backref('recipes', lazy=True))
+
+
+#===========
+
+@login_manager.user_loader
+def load_user(user_id_or_username):
+    user = Users.query.filter((Users.id == int(user_id_or_username)) | (Users.username == user_id_or_username)).first()
+    return user
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    identifier = request.form.get('identifier')  # This can be either username or user ID
+    password = request.form.get('password')
+
+    user = Users.query.filter((Users.id == int(identifier)) | (Users.username == identifier)).first()
+
+    if user and bcrypt.check_password_hash(user.password, password):
+        login_user(user)
+        return jsonify({'message': 'Login successful'})
+    else:
+        return jsonify({'error': 'Invalid username or password'}), 401
+
+
+
+@app.route('/register', methods=['POST'])
+def register():
+    username = request.form.get('username')
+    password = request.form.get('password')
+
+    if Users.query.filter_by(username=username).first():
+        return jsonify({'error': 'Username already exists'}), 400
+
+    Users.register(username, password)
+    return jsonify({'message': 'Registration successful'})
+
+
+@app.route('/logout', methods=['POST'])
+@login_required
+def logout():
+    logout_user()
+    return jsonify({'message': 'Logout successful'})
+
+
+
+#=============
 
 # REST API endpoints
 @app.route('/api/recipes', methods=['GET'])
+@login_required
 def get_recipes():
     recipes = Recipe.query.all()
     recipe_list = [{'id': recipe.id, 'name': recipe.name, 'ingredients': recipe.ingredients,
@@ -54,12 +112,14 @@ def get_recipes():
     return jsonify(recipe_list)
 
 @app.route('/api/recipes/<int:id>', methods=['GET'])
+@login_required
 def get_recipe_by_id(id):
     recipe = Recipe.query.get_or_404(id)
     return jsonify({'id': recipe.id, 'name': recipe.name, 'ingredients': recipe.ingredients,
                     'prep_time': recipe.prep_time, 'image_path': recipe.image_path})
 
 @app.route('/api/recipes', methods=['POST'])
+@login_required
 def add_recipe():
     name = request.form.get('name')
     ingredients = request.form.get('ingredients')
@@ -77,7 +137,7 @@ def add_recipe():
     else:
         image_path = None
 
-    new_recipe = Recipe(name=name, ingredients=ingredients, prep_time=prep_time, image_path=image_path)
+    new_recipe = Recipe(name=name, ingredients=ingredients, prep_time=prep_time, image_path=image_path, user=current_user)
     db.session.add(new_recipe)
 
     try:
@@ -91,8 +151,14 @@ def add_recipe():
 
 
 @app.route('/api/recipes/<int:id>', methods=['PUT'])
+@login_required
 def update_recipe(id):
     recipe = Recipe.query.get_or_404(id)
+    recipe.user = current_user
+
+    if recipe.user != current_user:
+        return jsonify({'error': 'You do not have permission to update this recipe'}), 403
+
 
     name = request.form.get('name')
     ingredients = request.form.get('ingredients')
@@ -126,8 +192,13 @@ def update_recipe(id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/recipes/<int:id>', methods=['DELETE'])
+@login_required
 def delete_recipe(id):
     recipe = Recipe.query.get_or_404(id)
+
+    if recipe.user != current_user:
+        return jsonify({'error': 'You do not have permission to delete this recipe'}), 403
+
     db.session.delete(recipe)
     db.session.commit()
 
